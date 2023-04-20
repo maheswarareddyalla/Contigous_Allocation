@@ -1,0 +1,234 @@
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h> 
+#include <math.h> 
+  
+#define MAX_FILE_NAME_LENGTH 16 
+#define MAX_FILE_SIZE 1024 
+#define MIN_FILE_SIZE 128 
+#define MAX_FILES 64 
+#define MAX_DISK_SPACE 10240 
+#define MAX_TIME_UNITS 100 
+  
+struct file { 
+    char name[MAX_FILE_NAME_LENGTH]; 
+    int size; 
+}; 
+  
+struct disk { 
+    int size; 
+    int used; 
+    int wasted; 
+    int fragmentation; 
+    int files_allocated; 
+    struct file files[MAX_FILES]; 
+}; 
+  
+struct disk *allocate_disk(int size); 
+void add_file(struct disk *d, char name[], int size); 
+int delete_file(struct disk *d, char name[]); 
+void rename_file(struct disk *d, char old_name[], char new_name[]); 
+int move_file(struct disk *d, char name[], int new_size); 
+void free_disk(struct disk *d); 
+int calculate_fragmentation(struct disk *d); 
+  
+int main() 
+{ 
+    struct disk *d; 
+    int disk_size; 
+    int time_units; 
+  
+    printf("Enter the size of the disk: "); 
+    scanf("%d", &disk_size); 
+  
+    printf("Enter the number of time units to simulate: "); 
+    scanf("%d", &time_units); 
+  
+    d = allocate_disk(disk_size); 
+  
+    for (int i = 0; i < time_units; i++) { 
+  
+        int action; 
+        char name[MAX_FILE_NAME_LENGTH]; 
+        int size; 
+  
+        printf("\nEnter an action (1 - Add File, 2 - Delete File, 3 - Rename File, 4 - Move File): "); 
+        scanf("%d", &action); 
+  
+        if (action == 1) { 
+            printf("Enter the name of the file: "); 
+            scanf("%s", name); 
+  
+            printf("Enter the size of the file (minimum %d, maximum %d): ", MIN_FILE_SIZE, MAX_FILE_SIZE); 
+            scanf("%d", &size); 
+  
+            add_file(d, name, size); 
+        } 
+  
+        else if (action == 2) { 
+            printf("Enter the name of the file: "); 
+            scanf("%s", name); 
+  
+            delete_file(d, name); 
+        } 
+  
+        else if (action == 3) { 
+            char old_name[MAX_FILE_NAME_LENGTH]; 
+            char new_name[MAX_FILE_NAME_LENGTH]; 
+  
+            printf("Enter the old name of the file: "); 
+            scanf("%s", old_name); 
+  
+            printf("Enter the new name of the file: "); 
+            scanf("%s", new_name); 
+  
+            rename_file(d, old_name, new_name); 
+        } 
+  
+        else if (action == 4) { 
+            printf("Enter the name of the file: "); 
+            scanf("%s", name); 
+  
+            printf("Enter the new size of the file (minimum %d, maximum %d): ", MIN_FILE_SIZE, MAX_FILE_SIZE); 
+            scanf("%d", &size); 
+  
+            move_file(d, name, size); 
+        } 
+  
+        d->fragmentation = calculate_fragmentation(d); 
+        d->wasted = d->size - d->used; 
+  
+        // Print the results 
+        printf("\nDisk size: %d\nUsed: %d\nWasted: %d\nFragmentation: %d\nFiles allocated: %d\n", 
+               d->size, d->used, d->wasted, d->fragmentation, d->files_allocated); 
+  
+    } 
+  
+    free_disk(d); 
+  
+    return 0; 
+} 
+  
+struct disk *allocate_disk(int size) { 
+    // Allocate memory for the disk 
+    struct disk *d = (struct disk *)malloc(sizeof(struct disk)); 
+  
+    d->size = size; 
+    d->used = 0; 
+    d->wasted = 0; 
+    d->fragmentation = 0; 
+    d->files_allocated = 0; 
+  
+    for (int i = 0; i < MAX_FILES; i++) { 
+        strcpy(d->files[i].name, ""); 
+        d->files[i].size = 0; 
+    } 
+  
+    return d; 
+} 
+  
+void add_file(struct disk *d, char name[], int size) { 
+    if (d->used + size > d->size) { 
+        printf("Error: Not enough space on the disk!\n"); 
+        return; 
+    } 
+  
+    strcpy(d->files[d->files_allocated].name, name); 
+    d->files[d->files_allocated].size = size; 
+    d->files_allocated++; 
+    d->used += size; 
+  
+    printf("File %s added to the disk.\n", name); 
+} 
+  
+int delete_file(struct disk *d, char name[]) { 
+    // Search for the file 
+    int found = 0; 
+    int file_index; 
+    for (int i = 0; i < d->files_allocated; i++) { 
+        if (strcmp(d->files[i].name, name) == 0) { 
+            found = 1; 
+            file_index = i; 
+            break; 
+        } 
+    } 
+  
+    if (!found) { 
+        printf("Error: File %s not found!\n", name); 
+        return -1; 
+    } 
+  
+    d->used -= d->files[file_index].size; 
+    d->files_allocated--; 
+    strcpy(d->files[file_index].name, ""); 
+    d->files[file_index].size = 0; 
+  
+    printf("File %s deleted from the disk.\n", name); 
+    return 0; 
+} 
+  
+void rename_file(struct disk *d, char old_name[], char new_name[]) { 
+    // Search for the file 
+    int found = 0; 
+    int file_index; 
+    for (int i = 0; i < d->files_allocated; i++) { 
+        if (strcmp(d->files[i].name, old_name) == 0) { 
+            found = 1; 
+            file_index = i; 
+            break; 
+        } 
+    } 
+  
+    if (!found) { 
+        printf("Error: File %s not found!\n", old_name); 
+        return; 
+    } 
+  
+    strcpy(d->files[file_index].name, new_name); 
+  
+    printf("File %s renamed to %s.\n", old_name, new_name); 
+} 
+  
+int move_file(struct disk *d, char name[], int new_size) { 
+    // Search for the file 
+    int found = 0; 
+    int file_index; 
+    for (int i = 0; i < d->files_allocated; i++) { 
+        if (strcmp(d->files[i].name, name) == 0) { 
+            found = 1; 
+            file_index = i; 
+            break; 
+        } 
+    } 
+  
+    if (!found) { 
+        printf("Error: File %s not found!\n", name); 
+        return -1; 
+    } 
+  
+    if (d->used - d->files[file_index].size + new_size > d->size) { 
+        printf("Error: Not enough space on the disk!\n"); 
+        return -1; 
+    } 
+  
+    d->used -= d->files[file_index].size; 
+    d->used += new_size; 
+    d->files[file_index].size = new_size; 
+  
+    printf("File %s moved to the disk.\n", name); 
+    return 0; 
+} 
+  
+void free_disk(struct disk *d) { 
+    free(d); 
+} 
+  
+int calculate_fragmentation(struct disk *d) { 
+    int fragmentation = 0; 
+  
+    for (int i = 0; i < d->files_allocated - 1; i++) { 
+        fragmentation += (d->files[i + 1].size - d->files[i].size); 
+    } 
+  
+    return fragmentation; 
+}
